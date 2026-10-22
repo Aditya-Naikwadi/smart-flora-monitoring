@@ -1,0 +1,16 @@
+{
+  "name": "soil-moisture-simulator",
+  "version": "1.0.0",
+  "description": "ESP32 IoT sensor simulator and ingestion test suite",
+  "main": "simulate-device.ts",
+  "scripts": {
+    "test:ingest": "npx tsx simulate-device.ts --test",
+    "stream": "npx tsx simulate-device.ts --stream"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

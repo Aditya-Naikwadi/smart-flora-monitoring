@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables & secrets
+.env
+.env.*
+*.env
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Expo & build outputs
+.expo/
+**/.expo/
+dist/
+**/dist/
+web-build/
+**/web-build/
+expo-env.d.ts
+**/expo-env.d.ts
+
+# Native builds
+android/
+**/android/
+ios/
+**/ios/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Logs and debug
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# TypeScript
+*.tsbuildinfo
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
