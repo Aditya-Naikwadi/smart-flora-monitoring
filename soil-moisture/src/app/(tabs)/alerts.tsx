@@ -18,8 +18,10 @@ import {
 } from '@/features/alerts/useAlerts';
 import { usePlantsQuery } from '@/features/plants/usePlants';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useRouter } from 'expo-router';
 
 export default function AlertsScreen() {
+  const router = useRouter();
   const { colors } = useAppTheme();
   const [selectedPlantId, setSelectedPlantId] = useState<string | undefined>(undefined);
 
@@ -42,15 +44,23 @@ export default function AlertsScreen() {
           </Text>
         </View>
 
-        {unreadAlerts.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
           <Button
-            title="Mark All Read"
-            variant="secondary"
+            title="Configure Rules ⚙️"
+            variant="ghost"
             size="sm"
-            onPress={() => acknowledgeAllMutation.mutate(selectedPlantId)}
-            isLoading={acknowledgeAllMutation.isPending}
+            onPress={() => router.push('/notifications')}
           />
-        ) : null}
+          {unreadAlerts.length > 0 ? (
+            <Button
+              title="Mark All Read"
+              variant="secondary"
+              size="sm"
+              onPress={() => acknowledgeAllMutation.mutate(selectedPlantId)}
+              isLoading={acknowledgeAllMutation.isPending}
+            />
+          ) : null}
+        </View>
       </View>
 
       {/* Horizontal Plant Filter Chips */}

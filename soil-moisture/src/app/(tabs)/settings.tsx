@@ -244,10 +244,16 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* Test Notification Button */}
-        <View style={{ marginTop: Spacing.sm }}>
+        {/* Test Notification & Notification Center Buttons */}
+        <View style={{ marginTop: Spacing.sm, gap: 8 }}>
           <Button
-            title={testNotificationSent ? 'Test Alert Sent! ✓' : 'Send Test Notification'}
+            title="Open Notification System & Rules ➔"
+            variant="secondary"
+            size="sm"
+            onPress={() => router.push('/notifications')}
+          />
+          <Button
+            title={testNotificationSent ? 'Test Alert Sent! ✓' : 'Send Quick Test Notification'}
             variant="outline"
             size="sm"
             onPress={handleSendTestNotification}

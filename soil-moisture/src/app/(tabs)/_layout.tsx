@@ -5,6 +5,9 @@ import { useAlertsQuery } from '@/features/alerts/useAlerts';
 import { usePushNotifications } from '@/features/alerts/usePushNotifications';
 import { useAppTheme } from '@/hooks/useAppTheme';
 
+import { useRouter } from 'expo-router';
+import { Pressable } from 'react-native';
+
 function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
   return (
     <View style={[styles.iconContainer, focused && styles.iconFocused]}>
@@ -14,6 +17,7 @@ function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
 }
 
 export default function TabsLayout() {
+  const router = useRouter();
   const { colors } = useAppTheme();
   usePushNotifications();
   const { data: alerts } = useAlertsQuery();
@@ -27,6 +31,24 @@ export default function TabsLayout() {
         },
         headerTintColor: colors.text,
         headerShadowVisible: false,
+        headerRight: () => (
+          <Pressable
+            onPress={() => router.push('/notifications')}
+            style={({ pressed }) => [
+              styles.headerBellBtn,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={styles.headerBellIcon}>🔔</Text>
+            {unreadCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ),
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
@@ -88,5 +110,32 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 20,
+  },
+  headerBellBtn: {
+    marginRight: 16,
+    padding: 6,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBellIcon: {
+    fontSize: 20,
+  },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
 });

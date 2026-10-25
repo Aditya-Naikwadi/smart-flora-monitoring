@@ -62,6 +62,14 @@ function RootNavigation() {
             headerShown: true,
           }}
         />
+        <Stack.Screen
+          name="notifications"
+          options={{
+            title: 'Notification System',
+            headerShown: true,
+            headerBackTitle: 'Back',
+          }}
+        />
       </Stack>
     </>
   );

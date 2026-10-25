@@ -16,8 +16,10 @@ export function useAlertsQuery(filterPlantId?: string) {
 
   // Realtime subscription for instant new incident alerts
   useEffect(() => {
+    const instanceId = Math.random().toString(36).substring(7);
+    const channelName = `alerts:${instanceId}`;
     const channel = supabase
-      .channel('public:alerts')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'alerts' },

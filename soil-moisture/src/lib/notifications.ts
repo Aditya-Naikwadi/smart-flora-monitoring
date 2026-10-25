@@ -59,6 +59,13 @@ export const Notifications = {
         console.warn('[Notifications] getPermissionsAsync error:', err);
       }
     }
+    if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = (window as any).Notification.permission;
+      return {
+        status: permission === 'granted' ? 'granted' : permission === 'denied' ? 'denied' : 'undetermined',
+        granted: permission === 'granted',
+      };
+    }
     return { status: 'denied', granted: false };
   },
 
@@ -68,6 +75,17 @@ export const Notifications = {
         return await nativeNotifications.requestPermissionsAsync();
       } catch (err) {
         console.warn('[Notifications] requestPermissionsAsync error:', err);
+      }
+    }
+    if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const permission = await (window as any).Notification.requestPermission();
+        return {
+          status: permission === 'granted' ? 'granted' : 'denied',
+          granted: permission === 'granted',
+        };
+      } catch {
+        return { status: 'denied', granted: false };
       }
     }
     return { status: 'denied', granted: false };
@@ -92,7 +110,23 @@ export const Notifications = {
         console.warn('[Notifications] scheduleNotificationAsync error:', err);
       }
     }
-    console.log('[Push Simulation] Notification scheduled:', request.content?.title, '-', request.content?.body);
+
+    if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
+      if ((window as any).Notification.permission === 'granted') {
+        try {
+          new (window as any).Notification(request.content?.title || 'Smart Flora Alert', {
+            body: request.content?.body || '',
+            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌿</text></svg>',
+          });
+          return 'web-notification-id';
+        } catch (e) {
+          console.warn('[Web Notifications] Failed to spawn desktop notification:', e);
+        }
+      }
+    }
+
+    console.log('[Notification Dispatcher]', request.content?.title, '-', request.content?.body);
     return 'simulated-id';
   },
 };
+
