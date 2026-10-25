@@ -1,12 +1,9 @@
 import React from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import { useAlertsQuery } from '@/features/alerts/useAlerts';
 import { usePushNotifications } from '@/features/alerts/usePushNotifications';
 import { useAppTheme } from '@/hooks/useAppTheme';
-
-import { useRouter } from 'expo-router';
-import { Pressable } from 'react-native';
 
 function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
   return (

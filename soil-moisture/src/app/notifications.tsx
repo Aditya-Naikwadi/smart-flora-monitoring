@@ -2,7 +2,6 @@ import '@/lib/suppressWarnings';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  FlatList,
   Platform,
   Pressable,
   ScrollView,
@@ -150,11 +149,22 @@ export default function NotificationSystemScreen() {
     }
   };
 
+  const isPermissionActive = permissionGranted || webPermissionStatus === 'granted';
+
   const handleMarkAllRead = () => {
     setLocalLogs((prev) => prev.map((l) => ({ ...l, read: true })));
     acknowledgeAllMutation.mutate(undefined, {
       onSuccess: () => void refetch(),
     });
+  };
+
+  const handleAcknowledgeSingle = (id: string) => {
+    setLocalLogs((prev) => prev.map((l) => (l.id === id ? { ...l, read: true } : l)));
+    if (!id.startsWith('test-') && !id.startsWith('sys-')) {
+      acknowledgeAlertMutation.mutate(id, {
+        onSuccess: () => void refetch(),
+      });
+    }
   };
 
   const handleClearHistory = () => {
@@ -306,10 +316,10 @@ export default function NotificationSystemScreen() {
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Badge
-                  label={webPermissionStatus.toUpperCase()}
-                  variant={webPermissionStatus === 'granted' ? 'healthy' : 'warning'}
+                  label={isPermissionActive ? 'GRANTED' : webPermissionStatus.toUpperCase()}
+                  variant={isPermissionActive ? 'healthy' : 'warning'}
                 />
-                {webPermissionStatus !== 'granted' ? (
+                {!isPermissionActive ? (
                   <Button
                     title="Enable"
                     size="sm"
@@ -619,6 +629,18 @@ export default function NotificationSystemScreen() {
                 <Text style={[Typography.body, { color: colors.textSecondary, marginTop: Spacing.xs, fontSize: 13 }]}>
                   {log.message}
                 </Text>
+                {!log.read && (
+                  <View style={{ marginTop: Spacing.xs, alignItems: 'flex-end' }}>
+                    <Pressable
+                      onPress={() => handleAcknowledgeSingle(log.id)}
+                      style={{ paddingVertical: 2, paddingHorizontal: 6 }}
+                    >
+                      <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                        Mark as read ✓
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
               </Card>
             ))
           )}
