@@ -93,9 +93,9 @@ Saturated Water (High C)               ➔ Low Output Voltage (ADC ~ 1300 - 1800
 ### 2. ADC Calibration & Normalization Function
 The ESP32 uses a 12-bit Successive Approximation Register (SAR) Analog-to-Digital Converter mapping analog voltages ($0\text{ to }3.3\text{V}$) across $2^{12} = 4096$ discrete integer levels ($0 \text{ to } 4095$). Volumetric water content percentage ($\theta\%$) is calculated using the bounded linear mapping function:
 
-$$\theta(\text{ADC}) = \operatorname{clamp}\left( \frac{\text{RAW\_DRY} - \text{ADC}}{\text{RAW\_DRY} - \text{RAW\_WET}} \times 100\%, \quad 0\%, \quad 100\% \right)$$
+$$\theta(\text{ADC}) = \mathrm{clamp}\left( \frac{\text{RAW\_DRY} - \text{ADC}}{\text{RAW\_DRY} - \text{RAW\_WET}} \times 100\%, \quad 0\%, \quad 100\% \right)$$
 
-$$\operatorname{clamp}(x, 0, 100) = \begin{cases} 
+$$\mathrm{clamp}(x, 0, 100) = \begin{cases} 
 0, & x < 0 \\ 
 x, & 0 \le x \le 100 \\ 
 100, & x > 100 
