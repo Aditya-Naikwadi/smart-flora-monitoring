@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 export default function RegisterScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { signUp, isLoading } = useAuthStore();
+  const { signUp, signIn, isLoading } = useAuthStore();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -101,12 +101,34 @@ export default function RegisterScreen() {
       if (parsed.suggestedCooldownSeconds) {
         setCooldownSeconds(parsed.suggestedCooldownSeconds);
       }
-    } else if (session) {
+      return;
+    }
+
+    // If an active session is already created (Supabase email confirmations disabled)
+    if (session) {
       router.replace('/(tabs)');
+      return;
+    }
+
+    // Automatically authenticate with the newly registered credentials
+    const { error: loginError } = await signIn(email, password);
+    if (!loginError) {
+      router.replace('/(tabs)');
+      return;
+    }
+
+    // If login returned an error (e.g. Supabase project still has "Confirm email" toggled ON)
+    const parsedLogin = parseAuthError(loginError);
+    if (parsedLogin.kind === 'EMAIL_NOT_CONFIRMED') {
+      setAuthDiagnostic({
+        kind: 'EMAIL_NOT_CONFIRMED',
+        title: 'Email Confirmation Still Enabled on Supabase',
+        message: 'Account created! However, your Supabase project still has "Confirm email" enabled.',
+        actionHint: 'In Supabase Dashboard: Go to Authentication > Providers > Email > toggle OFF "Confirm email" to enable instant registration and login without verification links.',
+        rawMessage: loginError.message,
+      });
     } else {
-      setSuccessMessage(
-        `Account successfully registered! A verification link has been sent to ${email.trim()}. Please verify your email before signing in.`
-      );
+      setAuthDiagnostic(parsedLogin);
     }
   };
 
