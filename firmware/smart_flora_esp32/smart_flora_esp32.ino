@@ -7,8 +7,8 @@
 // 1. Wi-Fi Configuration
 // ==============================================================================
 // Enter your 2.4 GHz Wi-Fi credentials below (ESP32 does NOT support 5 GHz Wi-Fi)
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";     // <-- Replace with your Wi-Fi SSID
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // <-- Replace with your Wi-Fi password
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";     // <-- Enter your 2.4 GHz Wi-Fi SSID
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // <-- Enter your Wi-Fi Password
 
 // ==============================================================================
 // 2. Supabase Cloud Configuration
@@ -116,6 +116,11 @@ void connectToWiFi() {
     Serial.print("[WiFi] Signal Strength (RSSI): ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
+
+    // Configure fallback to Google Public DNS to avoid router/hotspot DNS drops
+    IPAddress primaryDNS(8, 8, 8, 8);
+    IPAddress secondaryDNS(8, 8, 4, 4);
+    WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), primaryDNS, secondaryDNS);
   } else {
     Serial.println("\n[WiFi Error] Failed to connect. Check Wi-Fi SSID, password, and ensure 2.4 GHz network.");
   }

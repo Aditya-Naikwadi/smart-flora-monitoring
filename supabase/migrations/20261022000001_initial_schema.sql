@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
@@ -91,6 +92,7 @@ CREATE TABLE IF NOT EXISTS public.plants (
 
 CREATE INDEX IF NOT EXISTS idx_plants_owner_id ON public.plants(owner_id);
 
+DROP TRIGGER IF EXISTS set_plants_updated_at ON public.plants;
 CREATE TRIGGER set_plants_updated_at
   BEFORE UPDATE ON public.plants
   FOR EACH ROW
@@ -124,6 +126,7 @@ CREATE TABLE IF NOT EXISTS public.devices (
 CREATE INDEX IF NOT EXISTS idx_devices_owner_id ON public.devices(owner_id);
 CREATE INDEX IF NOT EXISTS idx_devices_plant_id ON public.devices(plant_id);
 
+DROP TRIGGER IF EXISTS set_devices_updated_at ON public.devices;
 CREATE TRIGGER set_devices_updated_at
   BEFORE UPDATE ON public.devices
   FOR EACH ROW

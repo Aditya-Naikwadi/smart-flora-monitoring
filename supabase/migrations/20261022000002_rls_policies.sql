@@ -51,6 +51,13 @@ CREATE POLICY "Users can view own plants"
   TO authenticated
   USING (auth.uid() = owner_id);
 
+DROP POLICY IF EXISTS "Allow all users to view plants" ON public.plants;
+CREATE POLICY "Allow all users to view plants"
+  ON public.plants
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
 DROP POLICY IF EXISTS "Users can insert own plants" ON public.plants;
 CREATE POLICY "Users can insert own plants"
   ON public.plants
@@ -83,6 +90,13 @@ CREATE POLICY "Users can view own devices"
   FOR SELECT
   TO authenticated
   USING (auth.uid() = owner_id);
+
+DROP POLICY IF EXISTS "Allow all users to view devices" ON public.devices;
+CREATE POLICY "Allow all users to view devices"
+  ON public.devices
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert own devices" ON public.devices;
 CREATE POLICY "Users can insert own devices"
@@ -136,6 +150,21 @@ CREATE POLICY "Users can insert readings for own plants"
         AND plants.owner_id = auth.uid()
     )
   );
+
+-- Hardware Ingestion Policy: Allow ESP32 firmware using anon key to insert telemetry
+DROP POLICY IF EXISTS "Allow anon insert for readings" ON public.readings;
+CREATE POLICY "Allow anon insert for readings"
+  ON public.readings
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all users to view readings" ON public.readings;
+CREATE POLICY "Allow all users to view readings"
+  ON public.readings
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can delete readings of own plants" ON public.readings;
 CREATE POLICY "Users can delete readings of own plants"
