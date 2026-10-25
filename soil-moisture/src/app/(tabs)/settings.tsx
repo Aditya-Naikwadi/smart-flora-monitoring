@@ -1,3 +1,4 @@
+import '@/lib/suppressWarnings';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -9,7 +10,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { Notifications } from '@/lib/notifications';
+
 import { useRouter } from 'expo-router';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -53,6 +55,13 @@ export default function SettingsScreen() {
   };
 
   const handleSendTestNotification = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Notification Notice',
+        'Push notifications are supported on physical Android and iOS mobile devices.'
+      );
+      return;
+    }
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -68,9 +77,7 @@ export default function SettingsScreen() {
     } catch (err) {
       Alert.alert(
         'Notification Notice',
-        Platform.OS === 'web'
-          ? 'Push notifications require a physical Android or iOS device.'
-          : `Could not trigger notification: ${String(err)}`
+        `Could not trigger notification: ${String(err)}`
       );
     }
   };

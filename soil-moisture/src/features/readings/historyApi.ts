@@ -96,31 +96,55 @@ export async function getPlantTelemetryHistory(
     throw new Error(`Failed to fetch historical rollups: ${error.message}`);
   }
 
-  // Also include any raw readings from the last 24h that haven't rolled up yet
-  const yesterdayIso = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: recentRaw } = await supabase
+  // Find the latest hourly rollup bucket to avoid overlapping/duplicating raw readings
+  let rawSinceIso = startTimeIso;
+  const rollups = hourlyData || [];
+  if (rollups.length > 0) {
+    rawSinceIso = rollups[rollups.length - 1].bucket_start;
+  }
+
+  // Query only raw readings recorded strictly after the latest rolled-up bucket
+  const { data: recentRaw, error: rawError } = await supabase
     .from('readings')
     .select('soil_moisture_percent, temperature_c, humidity_percent, recorded_at')
     .eq('plant_id', plantId)
-    .gte('recorded_at', yesterdayIso)
+    .gt('recorded_at', rawSinceIso)
     .order('recorded_at', { ascending: true })
-    .limit(50);
+    .limit(100);
 
-  // Combine and format
-  const combined = [
-    ...(hourlyData || []).map((h) => ({
-      timestamp: h.bucket_start,
-      moisture: Number(h.avg_soil_moisture),
-      temperature: Number(h.avg_temperature_c),
-      humidity: Number(h.avg_humidity_percent),
-    })),
-    ...(recentRaw || []).map((r) => ({
-      timestamp: r.recorded_at,
-      moisture: Number(r.soil_moisture_percent),
-      temperature: Number(r.temperature_c),
-      humidity: Number(r.humidity_percent),
-    })),
-  ];
+  if (rawError) {
+    console.warn('Failed to fetch recent raw telemetry for history:', rawError.message);
+  }
+
+  // Combine and deduplicate
+  const rawList = recentRaw || [];
+  const combinedMap = new Map<string, { timestamp: string; moisture: number; temperature: number; humidity: number }>();
+
+  for (const h of rollups) {
+    if (h.bucket_start) {
+      combinedMap.set(h.bucket_start, {
+        timestamp: h.bucket_start,
+        moisture: Number(h.avg_soil_moisture),
+        temperature: Number(h.avg_temperature_c),
+        humidity: Number(h.avg_humidity_percent),
+      });
+    }
+  }
+
+  for (const r of rawList) {
+    if (r.recorded_at && !combinedMap.has(r.recorded_at)) {
+      combinedMap.set(r.recorded_at, {
+        timestamp: r.recorded_at,
+        moisture: Number(r.soil_moisture_percent),
+        temperature: Number(r.temperature_c),
+        humidity: Number(r.humidity_percent),
+      });
+    }
+  }
+
+  const combined = Array.from(combinedMap.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 
   return processPoints(
     combined.map((item, index) => {
@@ -143,7 +167,18 @@ export async function getPlantTelemetryHistory(
 function processPoints(
   items: { timestamp: string; label: string; moisture: number; temperature: number; humidity: number }[]
 ): PlantTelemetryHistory {
-  if (items.length === 0) {
+  // Sanitize and filter out any invalid/NaN/non-finite records
+  const validItems = items.filter(
+    (i) =>
+      !isNaN(i.moisture) &&
+      isFinite(i.moisture) &&
+      !isNaN(i.temperature) &&
+      isFinite(i.temperature) &&
+      !isNaN(i.humidity) &&
+      isFinite(i.humidity)
+  );
+
+  if (validItems.length === 0) {
     const emptyStats: HistoryStats = { min: 0, max: 0, avg: 0, latest: 0 };
     return {
       moisturePoints: [],
@@ -153,23 +188,24 @@ function processPoints(
     };
   }
 
-  const moistureVals = items.map((i) => i.moisture);
-  const tempVals = items.map((i) => i.temperature);
-  const humVals = items.map((i) => i.humidity);
+  const moistureVals = validItems.map((i) => i.moisture);
+  const tempVals = validItems.map((i) => i.temperature);
+  const humVals = validItems.map((i) => i.humidity);
 
   const computeStats = (vals: number[]): HistoryStats => {
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
+    if (vals.length === 0) return { min: 0, max: 0, avg: 0, latest: 0 };
+    const min = Number(Math.min(...vals).toFixed(1));
+    const max = Number(Math.max(...vals).toFixed(1));
     const sum = vals.reduce((a, b) => a + b, 0);
     const avg = Number((sum / vals.length).toFixed(1));
-    const latest = vals[vals.length - 1];
+    const latest = Number(vals[vals.length - 1].toFixed(1));
     return { min, max, avg, latest };
   };
 
   return {
-    moisturePoints: items.map((i) => ({ value: i.moisture, label: i.label, timestamp: i.timestamp })),
-    temperaturePoints: items.map((i) => ({ value: i.temperature, label: i.label, timestamp: i.timestamp })),
-    humidityPoints: items.map((i) => ({ value: i.humidity, label: i.label, timestamp: i.timestamp })),
+    moisturePoints: validItems.map((i) => ({ value: Number(i.moisture.toFixed(1)), label: i.label, timestamp: i.timestamp })),
+    temperaturePoints: validItems.map((i) => ({ value: Number(i.temperature.toFixed(1)), label: i.label, timestamp: i.timestamp })),
+    humidityPoints: validItems.map((i) => ({ value: Number(i.humidity.toFixed(1)), label: i.label, timestamp: i.timestamp })),
     stats: {
       moisture: computeStats(moistureVals),
       temperature: computeStats(tempVals),

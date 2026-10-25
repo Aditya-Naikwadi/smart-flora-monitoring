@@ -14,9 +14,10 @@ interface AuthState {
   
   initialize: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, pass: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, pass: string, fullName: string) => Promise<{ error: Error | null; session?: Session | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  resendConfirmation: (email: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -114,11 +115,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (error) {
       set({ isLoading: false });
-      return { error };
+      return { error, session: null };
     }
 
     set({ user: data.user, session: data.session, isLoading: false });
-    return { error: null };
+    return { error: null, session: data.session };
   },
 
   signOut: async () => {
@@ -130,6 +131,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   resetPassword: async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: 'soilmoisture://reset-password',
+    });
+    return { error };
+  },
+
+  resendConfirmation: async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim(),
     });
     return { error };
   },

@@ -197,7 +197,10 @@ To simulate live telemetry without physical ESP32 hardware:
    * The `ingest` Edge Function uses `crypto.subtle.timingSafeEqual` to verify the hardware ingest secret in constant time.
 3. **Hardware Ingestion Rate Limiting**:
    * Enforces a 15-second per-device rate limit to protect cloud bandwidth from malfunctioning or loop-locked microcontrollers.
-4. **Row Level Security (RLS)**:
+4. **Email Rate Limiting & Auth Resiliency**:
+   * Client-side throttle controls, live countdown timers, and diagnostic interceptors protect authentication flows against free-tier email quotas (3 emails/hr).
+   * Supports seamless upgrade to custom SMTP (e.g., Resend, SendGrid) for zero-rate-limit production deployments.
+5. **Row Level Security (RLS)**:
    * All tables (`profiles`, `plants`, `devices`, `readings`, `hourly_readings`, `alerts`) enforce strict RLS policies bound to `auth.uid() = user_id`.
 
 ---
@@ -218,6 +221,7 @@ To simulate live telemetry without physical ESP32 hardware:
 
 * [Hardware Spec & Firmware Contract](file:///docs/device-ingest-contract.md)
 * [Cloud Deployment & EAS Build Guide](file:///docs/deployment-and-build-guide.md)
+* [Email Rate Limiting & Production SMTP Guide](file:///docs/email-rate-limiting-guide.md)
 * [Academic Project Report](file:///docs/college-project-report.md)
 
 ---

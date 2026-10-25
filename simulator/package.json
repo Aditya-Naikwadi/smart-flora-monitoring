@@ -7,7 +7,10 @@
     "test:ingest": "npx tsx simulate-device.ts --test",
     "stream": "npx tsx simulate-device.ts --stream"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",

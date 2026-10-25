@@ -29,7 +29,7 @@ export default function PlantDetailScreen() {
   const { colors } = useAppTheme();
   const temperatureUnit = useSettingsStore((s) => s.temperatureUnit);
   const { data, isLoading, isError, error, refetch, isRefetching } = usePlantDetailQuery(plantId);
-  const { status: realtimeStatus } = useRealtimeReadings(plantId);
+  const { status: realtimeStatus, liveReading, lastEventAt } = useRealtimeReadings(plantId);
 
   const [isEditingThresholds, setIsEditingThresholds] = useState(false);
 
@@ -55,8 +55,32 @@ export default function PlantDetailScreen() {
     );
   }
 
-  const { plant, device, latestReading } = data;
+  const { plant, device } = data;
+  const latestReading = liveReading || data.latestReading;
   const healthStatus = calculatePlantHealth(plant, device, latestReading);
+
+  // Safe numerical extractions to prevent Number(null) turning into 0
+  const moistureValue =
+    latestReading && latestReading.soil_moisture_percent != null && !isNaN(Number(latestReading.soil_moisture_percent))
+      ? Number(latestReading.soil_moisture_percent)
+      : null;
+
+  const rawTemp =
+    latestReading && latestReading.temperature_c != null && !isNaN(Number(latestReading.temperature_c))
+      ? Number(latestReading.temperature_c)
+      : null;
+
+  const temperatureValue =
+    rawTemp !== null
+      ? temperatureUnit === 'F'
+        ? (rawTemp * 9) / 5 + 32
+        : rawTemp
+      : null;
+
+  const humidityValue =
+    latestReading && latestReading.humidity_percent != null && !isNaN(Number(latestReading.humidity_percent))
+      ? Number(latestReading.humidity_percent)
+      : null;
 
   const getStatusBadge = (): { label: string; variant: BadgeVariant } => {
     switch (healthStatus) {
@@ -120,10 +144,10 @@ export default function PlantDetailScreen() {
         </View>
       </Card>
 
-      {/* Realtime Live Telemetry Gauges Header */}
+      {/* Realtime Live Telemetry Speedometer Gauges Header */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          LIVE SENSOR GAUGES
+          REAL-TIME SPEEDOMETER GAUGES
         </Text>
         <View style={styles.liveIndicatorRow}>
           <View
@@ -136,16 +160,20 @@ export default function PlantDetailScreen() {
             ]}
           />
           <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-            {realtimeStatus === 'connected' ? 'Live Realtime' : 'Polling'}
+            {realtimeStatus === 'connected'
+              ? lastEventAt
+                ? `Live • ${lastEventAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                : 'Live Realtime'
+              : 'Polling (10s)'}
           </Text>
         </View>
       </View>
 
-      {/* 1. Soil Moisture Gauge */}
+      {/* 1. Soil Moisture Speedometer Dial */}
       <SensorGauge
         label="Soil Moisture"
         icon="💧"
-        value={latestReading ? Number(latestReading.soil_moisture_percent) : null}
+        value={moistureValue}
         unit="%"
         minTarget={Number(plant.min_soil_moisture)}
         maxTarget={Number(plant.max_soil_moisture)}
@@ -154,17 +182,11 @@ export default function PlantDetailScreen() {
         accentColor={colors.moisture}
       />
 
-      {/* 2. Temperature Gauge */}
+      {/* 2. Temperature Speedometer Dial */}
       <SensorGauge
         label="Temperature"
         icon="🌡️"
-        value={
-          latestReading
-            ? temperatureUnit === 'F'
-              ? (Number(latestReading.temperature_c) * 9) / 5 + 32
-              : Number(latestReading.temperature_c)
-            : null
-        }
+        value={temperatureValue}
         unit={temperatureUnit === 'F' ? '°F' : '°C'}
         minTarget={
           temperatureUnit === 'F'
@@ -181,11 +203,11 @@ export default function PlantDetailScreen() {
         accentColor={colors.temperature}
       />
 
-      {/* 3. Humidity Gauge */}
+      {/* 3. Ambient Humidity Speedometer Dial */}
       <SensorGauge
         label="Ambient Air Humidity"
         icon="💨"
-        value={latestReading ? Number(latestReading.humidity_percent) : null}
+        value={humidityValue}
         unit="%"
         minTarget={Number(plant.min_humidity_percent)}
         maxTarget={Number(plant.max_humidity_percent)}

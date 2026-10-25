@@ -1,3 +1,4 @@
+import '@/lib/suppressWarnings';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';

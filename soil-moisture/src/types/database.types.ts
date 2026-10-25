@@ -31,6 +31,7 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          email: string | null;
           full_name: string | null;
           expo_push_token: string | null;
           notification_enabled: boolean;
@@ -40,6 +41,7 @@ export interface Database {
         };
         Insert: {
           id: string;
+          email?: string | null;
           full_name?: string | null;
           expo_push_token?: string | null;
           notification_enabled?: boolean;
@@ -49,6 +51,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          email?: string | null;
           full_name?: string | null;
           expo_push_token?: string | null;
           notification_enabled?: boolean;

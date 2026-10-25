@@ -34,16 +34,40 @@ const DEMO_DEVICES: DeviceConfig[] = [
   },
 ];
 
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Attempt to load .env from ../soil-moisture/.env or current directory
+const envPaths = [
+  path.join(__dirname, '..', 'soil-moisture', '.env'),
+  path.join(__dirname, '.env')
+];
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match && !process.env[match[1]]) {
+        process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+      }
+    }
+  }
+}
+
 // CLI Argument parsing
 const args = process.argv.slice(2);
 const isTestMode = args.includes('--test');
 const isStreamMode = args.includes('--stream') || (!isTestMode && args.length === 0);
 
+const defaultBaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://jtxatelmmgsprghvtyhh.supabase.co';
+const defaultIngestUrl = `${defaultBaseUrl}/functions/v1/ingest`;
+
 const urlIndex = args.indexOf('--url');
 const INGEST_URL =
   urlIndex !== -1 && args[urlIndex + 1]
     ? args[urlIndex + 1]
-    : process.env.INGEST_URL || 'http://127.0.0.1:54321/functions/v1/ingest';
+    : process.env.INGEST_URL || defaultIngestUrl;
+
 
 const intervalIndex = args.indexOf('--interval');
 const STREAM_INTERVAL_SEC =
@@ -239,12 +263,15 @@ async function startStreaming() {
       // Soil dries slowly over cycles, with slight noise
       const dryRange = device.rawDry - device.rawWet;
       const targetPercent = Math.max(25, 60 - cycle * 0.5);
-      const rawSoil = Math.round(device.rawDry - (targetPercent / 100) * dryRange + (Math.random() * 20 - 10));
+      const rawSoil = Math.max(
+        0,
+        Math.min(4095, Math.round(device.rawDry - (targetPercent / 100) * dryRange + (Math.random() * 20 - 10)))
+      );
 
       const payload = {
         soil_moisture_raw: rawSoil,
-        temperature_c: parseFloat(temp.toFixed(2)),
-        humidity_percent: parseFloat(hum.toFixed(2)),
+        temperature_c: Math.max(-40, Math.min(80, parseFloat(temp.toFixed(2)))),
+        humidity_percent: Math.max(0, Math.min(100, parseFloat(hum.toFixed(2)))),
         battery_voltage: 4.12,
         rssi: -60 - Math.floor(Math.random() * 10),
       };

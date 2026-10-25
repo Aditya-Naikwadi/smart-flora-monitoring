@@ -36,7 +36,10 @@ export const useSettingsStore = create<SettingsState>()(
 /**
  * Converts Celsius to user-preferred unit (°C or °F) with formatted string
  */
-export function formatTemperature(celsius: number, unit: TemperatureUnit): string {
+export function formatTemperature(celsius: number | null | undefined, unit: TemperatureUnit): string {
+  if (celsius == null || isNaN(celsius) || !isFinite(celsius)) {
+    return '--';
+  }
   if (unit === 'F') {
     const fahrenheit = (celsius * 9) / 5 + 32;
     return `${fahrenheit.toFixed(1)}°F`;

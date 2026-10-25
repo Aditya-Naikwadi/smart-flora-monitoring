@@ -63,7 +63,9 @@ export function TelemetryChart({ plantId }: TelemetryChartProps) {
     return '%';
   };
 
-  const points = getMetricData();
+  const points = getMetricData().filter(
+    (p) => p != null && typeof p.value === 'number' && !isNaN(p.value) && isFinite(p.value)
+  );
   const stats = data?.stats?.[activeMetric];
   const accentColor = getMetricColor();
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { BorderRadius, Spacing, Typography } from '@/constants/theme';
+import { authRateLimiter, parseAuthError, ParsedAuthError } from '@/features/auth/authErrors';
 import { ResetPasswordSchema } from '@/features/auth/schemas';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -23,26 +24,68 @@ export default function ForgotPasswordScreen() {
   const { resetPassword } = useAuthStore();
 
   const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [authDiagnostic, setAuthDiagnostic] = useState<ParsedAuthError | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+
+  // Active cooldown countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   const handleSubmit = async () => {
-    setError(null);
-    const validation = ResetPasswordSchema.safeParse({ email });
-    if (!validation.success) {
-      setError(validation.error.issues[0]?.message || 'Invalid email');
+    setAuthDiagnostic(null);
+
+    // 1. Client-side throttle
+    const remainingCooldown = authRateLimiter.getRemainingCooldown(`reset_${email.trim()}`, 60);
+    if (remainingCooldown > 0) {
+      setCooldownSeconds(remainingCooldown);
+      setAuthDiagnostic({
+        kind: 'RATE_LIMIT_EXCEEDED',
+        title: 'Action Cooldown Active',
+        message: `Please wait ${remainingCooldown}s before requesting another password reset email.`,
+        suggestedCooldownSeconds: remainingCooldown,
+        rawMessage: 'Client-side throttle active',
+      });
       return;
     }
 
+    const validation = ResetPasswordSchema.safeParse({ email });
+    if (!validation.success) {
+      setAuthDiagnostic({
+        kind: 'UNKNOWN',
+        title: 'Validation Error',
+        message: validation.error.issues[0]?.message || 'Please enter a valid email address',
+        rawMessage: 'Validation Error',
+      });
+      return;
+    }
+
+    authRateLimiter.recordAttempt(`reset_${email.trim()}`);
     setIsSubmitting(true);
     const { error: resetError } = await resetPassword(email);
     setIsSubmitting(false);
 
     if (resetError) {
-      setError(resetError.message);
+      const parsed = parseAuthError(resetError);
+      setAuthDiagnostic(parsed);
+      if (parsed.suggestedCooldownSeconds) {
+        setCooldownSeconds(parsed.suggestedCooldownSeconds);
+      }
     } else {
       setSuccess(true);
+      setCooldownSeconds(60);
     }
   };
 
@@ -63,16 +106,76 @@ export default function ForgotPasswordScreen() {
             Enter your account email to receive a password recovery link
           </Text>
 
-          {error ? (
-            <View style={[styles.banner, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <Text style={[styles.bannerText, { color: colors.danger }]}>{error}</Text>
+          {authDiagnostic ? (
+            <View
+              style={[
+                styles.diagnosticCard,
+                {
+                  backgroundColor:
+                    authDiagnostic.kind === 'RATE_LIMIT_EXCEEDED'
+                      ? 'rgba(234, 179, 8, 0.12)'
+                      : 'rgba(239, 68, 68, 0.1)',
+                  borderColor:
+                    authDiagnostic.kind === 'RATE_LIMIT_EXCEEDED'
+                      ? 'rgba(234, 179, 8, 0.4)'
+                      : 'rgba(239, 68, 68, 0.3)',
+                },
+              ]}
+            >
+              <View style={styles.diagnosticHeader}>
+                <Text style={styles.diagnosticIcon}>
+                  {authDiagnostic.kind === 'RATE_LIMIT_EXCEEDED' ? '⏳' : '⚠️'}
+                </Text>
+                <Text
+                  style={[
+                    styles.diagnosticTitle,
+                    {
+                      color:
+                        authDiagnostic.kind === 'RATE_LIMIT_EXCEEDED'
+                          ? '#ca8a04'
+                          : colors.danger,
+                    },
+                  ]}
+                >
+                  {authDiagnostic.title}
+                </Text>
+              </View>
+
+              <Text style={[styles.diagnosticMessage, { color: colors.text }]}>
+                {authDiagnostic.message}
+              </Text>
+
+              {authDiagnostic.actionHint ? (
+                <Text style={[styles.diagnosticHint, { color: colors.textSecondary }]}>
+                  💡 {authDiagnostic.actionHint}
+                </Text>
+              ) : null}
+
+              {cooldownSeconds > 0 ? (
+                <View style={styles.cooldownBadge}>
+                  <Text style={styles.cooldownText}>
+                    Cooldown: retry available in {cooldownSeconds}s
+                  </Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
 
           {success ? (
-            <View style={[styles.banner, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Text style={[styles.bannerText, { color: colors.healthy }]}>
-                A password reset link has been dispatched to {email}. Check your inbox.
+            <View
+              style={[
+                styles.diagnosticCard,
+                {
+                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                  borderColor: 'rgba(34, 197, 94, 0.3)',
+                },
+              ]}
+            >
+              <Text style={[styles.diagnosticTitle, { color: '#16a34a', marginBottom: 4 }]}>
+                ✓ Reset Link Sent
+              </Text>
+              <Text style={[styles.diagnosticMessage, { color: colors.text }]}>
+                A password recovery link has been dispatched to {email}. Check your inbox and spam folder.
               </Text>
             </View>
           ) : (
@@ -88,9 +191,14 @@ export default function ForgotPasswordScreen() {
               />
 
               <Button
-                title="Send Recovery Link"
+                title={
+                  cooldownSeconds > 0
+                    ? `Please wait (${cooldownSeconds}s)`
+                    : 'Send Recovery Link'
+                }
                 onPress={handleSubmit}
                 isLoading={isSubmitting}
+                disabled={cooldownSeconds > 0}
                 size="lg"
                 style={{ marginTop: Spacing.sm }}
               />
@@ -124,14 +232,47 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     alignSelf: 'center',
   },
-  banner: {
-    padding: Spacing.sm + 2,
+  diagnosticCard: {
+    padding: Spacing.md,
     borderRadius: BorderRadius.md,
+    borderWidth: 1,
     marginBottom: Spacing.md,
   },
-  bannerText: {
+  diagnosticHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  diagnosticIcon: {
+    fontSize: 18,
+    marginRight: Spacing.xs,
+  },
+  diagnosticTitle: {
+    ...Typography.bodyMedium,
+    fontWeight: '700',
+  },
+  diagnosticMessage: {
+    ...Typography.body,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: Spacing.xs,
+  },
+  diagnosticHint: {
     ...Typography.caption,
-    fontWeight: '500',
+    fontSize: 12,
+    marginTop: Spacing.xs,
+  },
+  cooldownBadge: {
+    marginTop: Spacing.xs,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.xs,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  cooldownText: {
+    ...Typography.caption,
+    fontWeight: '600',
   },
   footerRow: {
     flexDirection: 'row',

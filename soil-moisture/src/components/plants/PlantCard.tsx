@@ -89,7 +89,9 @@ export function PlantCard({ plant }: PlantCardProps) {
           <View style={styles.metricItem}>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>MOISTURE</Text>
             <Text style={[Typography.h3, { color: colors.moisture }]}>
-              {reading ? `${reading.soil_moisture_percent}%` : '--'}
+              {reading?.soil_moisture_percent != null && !isNaN(Number(reading.soil_moisture_percent))
+                ? `${Number(reading.soil_moisture_percent).toFixed(1)}%`
+                : '--'}
             </Text>
             <Text style={[styles.targetRange, { color: colors.textMuted }]}>
               Ideal {plant.min_soil_moisture}-{plant.max_soil_moisture}%
@@ -102,7 +104,9 @@ export function PlantCard({ plant }: PlantCardProps) {
           <View style={styles.metricItem}>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>TEMP</Text>
             <Text style={[Typography.h3, { color: colors.temperature }]}>
-              {reading ? formatTemperature(Number(reading.temperature_c), temperatureUnit) : '--'}
+              {reading?.temperature_c != null && !isNaN(Number(reading.temperature_c))
+                ? formatTemperature(Number(reading.temperature_c), temperatureUnit)
+                : '--'}
             </Text>
             <Text style={[styles.targetRange, { color: colors.textMuted }]}>
               Target {formatTemperature(Number(plant.min_temperature_c), temperatureUnit)}
@@ -115,7 +119,9 @@ export function PlantCard({ plant }: PlantCardProps) {
           <View style={styles.metricItem}>
             <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>HUMIDITY</Text>
             <Text style={[Typography.h3, { color: colors.humidity }]}>
-              {reading ? `${reading.humidity_percent}%` : '--'}
+              {reading?.humidity_percent != null && !isNaN(Number(reading.humidity_percent))
+                ? `${Number(reading.humidity_percent).toFixed(1)}%`
+                : '--'}
             </Text>
             <Text style={[styles.targetRange, { color: colors.textMuted }]}>
               Ideal {plant.min_humidity_percent}-{plant.max_humidity_percent}%
