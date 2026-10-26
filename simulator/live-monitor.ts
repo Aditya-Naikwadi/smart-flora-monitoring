@@ -1,13 +1,3 @@
-/**
- * Real-Time Sensor Telemetry Monitor
- *
- * Listens for genuine live readings sent by your physical ESP32 hardware sensors.
- * Does NOT generate, inject, or post any simulated or fake data.
- *
- * Usage:
- *   npm run monitor
- */
-
 import fs from 'node:fs';
 import path from 'node:path';
 

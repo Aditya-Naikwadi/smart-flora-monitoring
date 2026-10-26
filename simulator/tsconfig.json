@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["simulate-device.ts"]
+  "include": ["*.ts"]
 }
