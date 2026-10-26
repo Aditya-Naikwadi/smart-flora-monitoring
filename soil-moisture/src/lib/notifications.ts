@@ -1,9 +1,13 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+export const isExpoGo =
+  (Constants as any).appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  (Constants as any).executionEnvironment === 'storeClient' ||
+  Boolean((Constants as any).expoVersion);
+
 const isWeb = Platform.OS === 'web';
-const isSupported = !isExpoGo && !isWeb;
 
 export const AndroidImportance = {
   UNKNOWN: 0,
@@ -15,17 +19,67 @@ export const AndroidImportance = {
   MAX: 6,
 };
 
-// Safe native loader: Only executed in standalone Android/iOS native production builds
+// Safe native loader: Works in both standalone builds and Expo Go
 let nativeNotifications: any = null;
 
-if (isSupported) {
+if (!isWeb) {
   try {
-    // Dynamic require so Expo Go never evaluates expo-notifications at bundle boot
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     nativeNotifications = require('expo-notifications');
+  } catch {
+    // Silently fall back if native module is unavailable
+  }
+}
 
-  } catch (err) {
-    console.warn('[Notifications] Native expo-notifications not available:', err);
+// 1. Initialize Foreground Notification Presentation Handler
+if (nativeNotifications?.setNotificationHandler) {
+  try {
+    nativeNotifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // Silently continue
+  }
+}
+
+/**
+ * Configure Android notification channels for Critical vs Warning alerts.
+ * Note: Android notification channels are skipped in Expo Go to avoid Java NPE.
+ */
+export async function initializeNotificationChannels(): Promise<void> {
+  if (Platform.OS === 'android' && !isExpoGo && nativeNotifications?.setNotificationChannelAsync) {
+    try {
+      // 1. Critical Channel (Max Priority, Sound, Red LED, Urgent Vibration)
+      await nativeNotifications.setNotificationChannelAsync('critical', {
+        name: 'Critical Crop Stress Alerts',
+        importance: AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#EF4444',
+        sound: 'default',
+        enableLights: true,
+        enableVibrate: true,
+        bypassDnd: true,
+      });
+
+      // 2. Warning Channel (High Priority, Amber LED)
+      await nativeNotifications.setNotificationChannelAsync('warning', {
+        name: 'Warning Level Crop Alerts',
+        importance: AndroidImportance.HIGH,
+        vibrationPattern: [0, 200, 200],
+        lightColor: '#F59E0B',
+        sound: 'default',
+        enableLights: true,
+        enableVibrate: true,
+      });
+    } catch {
+      // Silently ignore channel errors in sandbox
+    }
   }
 }
 
@@ -33,19 +87,19 @@ export const Notifications = {
   setNotificationHandler: (handler: any) => {
     if (nativeNotifications?.setNotificationHandler) {
       try {
-        nativeNotifications.setNotificationHandler(handler);
-      } catch (err) {
-        console.warn('[Notifications] setNotificationHandler error:', err);
+        return nativeNotifications.setNotificationHandler(handler);
+      } catch {
+        // Silently continue
       }
     }
   },
 
-  setNotificationChannelAsync: async (channelId: string, options: any) => {
-    if (nativeNotifications?.setNotificationChannelAsync) {
+  setNotificationChannelAsync: async (channelId: string, channel: any) => {
+    if (!isExpoGo && nativeNotifications?.setNotificationChannelAsync) {
       try {
-        return await nativeNotifications.setNotificationChannelAsync(channelId, options);
-      } catch (err) {
-        console.warn('[Notifications] setNotificationChannelAsync error:', err);
+        return await nativeNotifications.setNotificationChannelAsync(channelId, channel);
+      } catch {
+        // Silently ignore channel errors in sandbox
       }
     }
     return null;
@@ -55,8 +109,8 @@ export const Notifications = {
     if (nativeNotifications?.getPermissionsAsync) {
       try {
         return await nativeNotifications.getPermissionsAsync();
-      } catch (err) {
-        console.warn('[Notifications] getPermissionsAsync error:', err);
+      } catch {
+        // Fallback
       }
     }
     if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
@@ -73,8 +127,8 @@ export const Notifications = {
     if (nativeNotifications?.requestPermissionsAsync) {
       try {
         return await nativeNotifications.requestPermissionsAsync();
-      } catch (err) {
-        console.warn('[Notifications] requestPermissionsAsync error:', err);
+      } catch {
+        // Fallback
       }
     }
     if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
@@ -92,41 +146,66 @@ export const Notifications = {
   },
 
   getExpoPushTokenAsync: async (options?: any) => {
-    if (nativeNotifications?.getExpoPushTokenAsync) {
+    if (!isExpoGo && nativeNotifications?.getExpoPushTokenAsync) {
       try {
         return await nativeNotifications.getExpoPushTokenAsync(options);
-      } catch (err) {
-        console.warn('[Notifications] getExpoPushTokenAsync error:', err);
+      } catch {
+        // Suppress in unsupported environments
       }
     }
     return { data: '' };
   },
 
-  scheduleNotificationAsync: async (request: any) => {
+  /**
+   * Dispatches an immediate local notification (Works in Expo Go and standalone apps)
+   */
+  scheduleNotificationAsync: async (request: {
+    content: {
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+      channelId?: string;
+      sound?: boolean | string;
+      badge?: number;
+    };
+    trigger?: any;
+  }) => {
     if (nativeNotifications?.scheduleNotificationAsync) {
       try {
         return await nativeNotifications.scheduleNotificationAsync(request);
-      } catch (err) {
-        console.warn('[Notifications] scheduleNotificationAsync error:', err);
+      } catch {
+        // Fall through to web / simulated
       }
     }
 
     if (isWeb && typeof window !== 'undefined' && 'Notification' in window) {
       if ((window as any).Notification.permission === 'granted') {
         try {
-          new (window as any).Notification(request.content?.title || 'Smart Flora Alert', {
-            body: request.content?.body || '',
+          new (window as any).Notification(request.content.title, {
+            body: request.content.body,
             icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌿</text></svg>',
           });
           return 'web-notification-id';
-        } catch (e) {
-          console.warn('[Web Notifications] Failed to spawn desktop notification:', e);
+        } catch {
+          // Fall through
         }
       }
     }
 
-    console.log('[Notification Dispatcher]', request.content?.title, '-', request.content?.body);
-    return 'simulated-id';
+    return 'local-simulated-id';
+  },
+
+  /**
+   * Listen for user tapping on a notification to handle deep linking
+   */
+  addNotificationResponseReceivedListener: (listener: (response: any) => void) => {
+    if (nativeNotifications?.addNotificationResponseReceivedListener) {
+      try {
+        return nativeNotifications.addNotificationResponseReceivedListener(listener);
+      } catch {
+        return { remove: () => {} };
+      }
+    }
+    return { remove: () => {} };
   },
 };
-

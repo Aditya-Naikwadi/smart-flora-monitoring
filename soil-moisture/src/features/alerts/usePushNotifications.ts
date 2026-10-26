@@ -1,14 +1,11 @@
 import '@/lib/suppressWarnings';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import { Notifications, AndroidImportance } from '@/lib/notifications';
+import { Notifications, AndroidImportance, isExpoGo } from '@/lib/notifications';
 
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
-
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // Configure how notifications are displayed when app is in the foreground (standalone mobile only)
 if (Platform.OS !== 'web' && !isExpoGo) {
@@ -22,8 +19,8 @@ if (Platform.OS !== 'web' && !isExpoGo) {
         shouldShowList: true,
       }),
     });
-  } catch (err) {
-    console.warn('[Push] setNotificationHandler not available:', err);
+  } catch {
+    // Silently ignore in unsupported environments
   }
 }
 

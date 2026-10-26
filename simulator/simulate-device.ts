@@ -12,6 +12,7 @@
 interface DeviceConfig {
   name: string;
   id: string;
+  plantId: string;
   secret: string;
   rawDry: number;
   rawWet: number;
@@ -19,18 +20,12 @@ interface DeviceConfig {
 
 const DEMO_DEVICES: DeviceConfig[] = [
   {
-    name: 'Monstera Deliciosa (Living Room)',
-    id: '33333333-3333-3333-3333-333333333333',
-    secret: 'test_secret_monstera_1234567890abcdef',
-    rawDry: 3200,
+    name: 'Smart Plant (ESP32 Sensor)',
+    id: '00000000-0000-0000-0000-000000000001',
+    plantId: '00000000-0000-0000-0000-000000000001',
+    secret: 'none',
+    rawDry: 4000,
     rawWet: 1400,
-  },
-  {
-    name: 'Snake Plant (Office Desk)',
-    id: '44444444-4444-4444-4444-444444444444',
-    secret: 'test_secret_snakeplant_1234567890abcdef',
-    rawDry: 3350,
-    rawWet: 1450,
   },
 ];
 
@@ -60,6 +55,7 @@ const isTestMode = args.includes('--test');
 const isStreamMode = args.includes('--stream') || (!isTestMode && args.length === 0);
 
 const defaultBaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://jtxatelmmgsprghvtyhh.supabase.co';
+const defaultAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_EivbdBfQUKHp1uT_ri-Zdw_8s2EKxP4';
 const defaultIngestUrl = `${defaultBaseUrl}/functions/v1/ingest`;
 
 const urlIndex = args.indexOf('--url');
@@ -276,6 +272,12 @@ async function startStreaming() {
         rssi: -60 - Math.floor(Math.random() * 10),
       };
 
+      // Compute moisture percent locally for display & PostgREST fallback
+      const computedPercent = Math.max(
+        0,
+        Math.min(100, Math.round(((device.rawDry - rawSoil) / dryRange) * 100))
+      );
+
       try {
         const res = await postTelemetry(INGEST_URL, device.id, device.secret, payload);
         if (res.status === 201) {
@@ -290,6 +292,41 @@ async function startStreaming() {
           console.log(
             `[${nowStr}] [${yellow('429 RATE LIMIT')}] ${device.name}: Next retry permitted in 15s.`
           );
+        } else if (res.status === 404) {
+          // Edge Function is not deployed yet; fallback to direct PostgREST ingestion
+          const restRes = await fetch(`${defaultBaseUrl}/rest/v1/readings`, {
+            method: 'POST',
+            headers: {
+              'apikey': defaultAnonKey,
+              'Authorization': `Bearer ${defaultAnonKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify({
+              plant_id: device.plantId,
+              device_id: device.id,
+              soil_moisture_percent: computedPercent,
+              soil_moisture_raw: rawSoil,
+              temperature_c: payload.temperature_c,
+              humidity_percent: payload.humidity_percent,
+              battery_voltage: payload.battery_voltage,
+              rssi: payload.rssi,
+            }),
+          });
+
+          if (restRes.status === 201) {
+            console.log(
+              `[${nowStr}] [${green('201 OK')}] ${bold(device.name)} (via PostgREST) -> ` +
+                `Soil: ${cyan(`${computedPercent}%`)} (raw: ${rawSoil}) | ` +
+                `Temp: ${yellow(`${payload.temperature_c}°C`)} | ` +
+                `Hum: ${cyan(`${payload.humidity_percent}%`)}`
+            );
+          } else {
+            const restBody = await restRes.text();
+            console.log(
+              `[${nowStr}] [${red(`${restRes.status} ERR`)}] ${device.name}: ${restBody}`
+            );
+          }
         } else {
           console.log(
             `[${nowStr}] [${red(`${res.status} ERR`)}] ${device.name}: ${JSON.stringify(res.body)}`

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { PLANT_DETAIL_QUERY_KEY, PLANTS_QUERY_KEY } from '@/features/plants/usePlants';
 import { calculatePlantHealth, Plant, PlantWithTelemetry, Reading } from '@/features/plants/api';
+import { checkSensorsOffline, ensureNotificationSetup, processSensorReading } from '@/features/alerts/alertManager';
 
 export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected' | 'fallback_polling';
 
@@ -19,6 +20,13 @@ export function useRealtimeReadings(plantId?: string) {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    void ensureNotificationSetup();
+
+    // Check for sensor offline status (>15 mins without telemetry) every 60 seconds
+    const offlineTimer = setInterval(() => {
+      void checkSensorsOffline(plantId);
+    }, 60000);
+
     // Unique channel identifier per hook instance to prevent channel collisions
     const instanceId = Math.random().toString(36).substring(7);
     const channelName = plantId
@@ -42,6 +50,17 @@ export function useRealtimeReadings(plantId?: string) {
           if (newReading && newReading.id) {
             setLastEventAt(new Date(newReading.recorded_at || Date.now()));
             setLiveReading(newReading);
+
+            // Trigger threshold evaluation pipeline (Hysteresis, Debounce, Cooldown, Notifications)
+            if (newReading.soil_moisture_percent != null) {
+              void processSensorReading('moisture', newReading.soil_moisture_percent, newReading.plant_id);
+            }
+            if (newReading.temperature_c != null) {
+              void processSensorReading('temperature', newReading.temperature_c, newReading.plant_id);
+            }
+            if (newReading.humidity_percent != null) {
+              void processSensorReading('humidity', newReading.humidity_percent, newReading.plant_id);
+            }
 
             // 1. Instantly update plant detail cache with zero latency
             if (newReading.plant_id) {
@@ -114,6 +133,7 @@ export function useRealtimeReadings(plantId?: string) {
       });
 
     return () => {
+      clearInterval(offlineTimer);
       void supabase.removeChannel(channel);
     };
   }, [queryClient, plantId]);

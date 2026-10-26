@@ -55,18 +55,36 @@ export function calculatePlantHealth(
   return 'healthy';
 }
 
+// Seed demo plant IDs to exclude so dashboard displays only genuine plants
+const DEMO_PLANT_IDS = new Set([
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+]);
+
 /**
- * Fetches all plants owned by current user along with their paired device and latest telemetry reading
+ * Fetches all real plants along with their paired device and latest telemetry reading
  */
 export async function getPlantsWithTelemetry(): Promise<PlantWithTelemetry[]> {
-  const { data: plants, error: plantsError } = await supabase
+  const { data: { session } } = await supabase.auth.getSession();
+
+  let query = supabase
     .from('plants')
     .select('*')
     .order('created_at', { ascending: false });
 
+  // If user is logged in, show only their plants
+  if (session?.user?.id) {
+    query = query.eq('owner_id', session.user.id);
+  }
+
+  const { data: rawPlants, error: plantsError } = await query;
+
   if (plantsError) {
     throw new Error(`Failed to fetch plants: ${plantsError.message}`);
   }
+
+  // Filter out demo seed plants
+  const plants = (rawPlants || []).filter((p) => !DEMO_PLANT_IDS.has(p.id));
 
   if (!plants || plants.length === 0) {
     return [];

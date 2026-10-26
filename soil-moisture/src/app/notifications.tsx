@@ -60,35 +60,7 @@ export default function NotificationSystemScreen() {
   const [selectedSeverity, setSelectedSeverity] = useState<'all' | 'critical' | 'warning' | 'info'>('all');
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [webPermissionStatus, setWebPermissionStatus] = useState<string>('checking...');
-  const [localLogs, setLocalLogs] = useState<NotificationLogItem[]>([
-    {
-      id: 'sys-1',
-      title: '🌿 System Notification Channel Ready',
-      message: 'Push notification engine initialized with Supabase Realtime alerts.',
-      timestamp: 'Just now',
-      severity: 'info',
-      channel: 'system',
-      read: true,
-    },
-    {
-      id: 'sys-2',
-      title: '⚠️ Soil Moisture Below Target (Monstera)',
-      message: 'Moisture reached 18% (Target minimum: 35%). Immediate watering recommended.',
-      timestamp: '15m ago',
-      severity: 'critical',
-      channel: 'push',
-      read: false,
-    },
-    {
-      id: 'sys-3',
-      title: '🌡️ Temperature Anomaly Detected (Snake Plant)',
-      message: 'Ambient reading exceeded 31.5°C in South Window.',
-      timestamp: '1h ago',
-      severity: 'warning',
-      channel: 'telemetry',
-      read: false,
-    },
-  ]);
+  const [localLogs, setLocalLogs] = useState<NotificationLogItem[]>([]);
 
   // Sync web permissions
   useEffect(() => {
@@ -373,7 +345,7 @@ export default function NotificationSystemScreen() {
                 onPress={() =>
                   handleDispatchTestNotification(
                     '🚨 Critical: Dry Soil Detected!',
-                    'Monstera Deliciosa moisture dropped to 14%. Water plant now.',
+                    'Soil moisture dropped to 14%. Immediate watering recommended.',
                     'critical'
                   )
                 }
@@ -386,7 +358,7 @@ export default function NotificationSystemScreen() {
                 onPress={() =>
                   handleDispatchTestNotification(
                     '❄️ Frost Warning: Low Temp',
-                    'Snake Plant ambient temperature dropped to 7.8°C.',
+                    'Ambient temperature dropped to 7.8°C.',
                     'warning'
                   )
                 }
@@ -399,7 +371,7 @@ export default function NotificationSystemScreen() {
                 onPress={() =>
                   handleDispatchTestNotification(
                     '📶 ESP32 Sensor Online',
-                    'Device ESP32-MONSTERA-01 re-established WiFi telemetry connection.',
+                    'ESP32 sensor telemetry connection active.',
                     'info'
                   )
                 }

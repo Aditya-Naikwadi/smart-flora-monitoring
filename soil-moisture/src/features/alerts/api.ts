@@ -7,8 +7,13 @@ export interface AlertWithPlant extends AlertRecord {
   plantName: string;
 }
 
+const DEMO_PLANT_IDS = new Set([
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+]);
+
 /**
- * Fetches all alerts for the authenticated user, optionally filtered by plantId
+ * Fetches all real alerts, optionally filtered by plantId
  */
 export async function getUserAlerts(filterPlantId?: string): Promise<AlertWithPlant[]> {
   let query = supabase
@@ -26,13 +31,15 @@ export async function getUserAlerts(filterPlantId?: string): Promise<AlertWithPl
     throw new Error(`Failed to load alerts: ${error.message}`);
   }
 
-  return (data || []).map((item) => {
-    const plantObj = item.plants as unknown as { name: string } | null;
-    return {
-      ...item,
-      plantName: plantObj?.name || 'Plant',
-    };
-  });
+  return (data || [])
+    .filter((item) => !DEMO_PLANT_IDS.has(item.plant_id))
+    .map((item) => {
+      const plantObj = item.plants as unknown as { name: string } | null;
+      return {
+        ...item,
+        plantName: plantObj?.name || 'Plant',
+      };
+    });
 }
 
 /**

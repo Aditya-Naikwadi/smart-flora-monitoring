@@ -155,6 +155,11 @@ export const Typography = {
     fontWeight: '500' as const,
     lineHeight: 22,
   },
+  bodySmall: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+  },
   caption: {
     fontSize: 12,
     fontWeight: '400' as const,
