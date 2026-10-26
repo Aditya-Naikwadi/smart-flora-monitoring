@@ -205,7 +205,7 @@ describe('IoT Sensor Ingest Payload & Security Headers', () => {
 
   it('validates device authentication headers', () => {
     const valid = ingestHeadersSchema.safeParse({
-      'x-device-id': '11111111-1111-1111-1111-111111111111',
+      'x-device-id': '11111111-1111-4111-a111-111111111111',
       'x-device-secret': 'sec_1234567890abcdef123456',
     });
     assert.equal(valid.success, true);
