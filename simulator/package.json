@@ -5,7 +5,8 @@
   "main": "simulate-device.ts",
   "scripts": {
     "test:ingest": "npx tsx simulate-device.ts --test",
-    "stream": "npx tsx simulate-device.ts --stream"
+    "stream": "npx tsx simulate-device.ts --stream",
+    "monitor": "npx tsx live-monitor.ts"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
